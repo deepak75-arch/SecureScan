@@ -1,11 +1,10 @@
 
-import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
-import { ShieldCheck, LayoutDashboard, Clock, FileText } from "lucide-react";
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from "react-router-dom";
+import { ShieldCheck, LayoutDashboard, FileText } from "lucide-react";
 import "./App.css";
 
 import BrandHeader from "./components/BrandHeader";
 import Dashboard from "./pages/Dashboard";
-import ScanHistory from "./pages/ScanHistory";
 import Reports from "./pages/Reports";
 import ScanDetails from "./pages/ScanDetails";
 
@@ -30,15 +29,7 @@ function App() {
               Dashboard
             </NavLink>
 
-            <NavLink
-              to="/history"
-              className={({ isActive }) =>
-                `nav-item ${isActive ? "active" : ""}`
-              }
-            >
-              <Clock size={19} />
-              Scan History
-            </NavLink>
+            
 
             <NavLink
               to="/reports"
@@ -57,13 +48,13 @@ function App() {
               <strong>Secure by design</strong>
               <p>Automated source code security analysis.</p>
             </div>
-            <div className="version">SecureScan AI · v1.0</div>
+            <div className="version">SecureScan  · v1.0</div>
           </div>
         </aside>
 
         <main className="main">
           <header className="topbar">
-            <strong>SecureScan AI / Security Workspace</strong>
+            <strong>SecureScan  / Security Workspace</strong>
             <span className="engine-status">
               <span className="status-dot"></span>
               Scanner integration pending
@@ -71,11 +62,12 @@ function App() {
           </header>
 
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/history" element={<ScanHistory />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/scans/:scanId" element={<ScanDetails />} />
-          </Routes>
+  <Route path="/" element={<Dashboard />} />
+  <Route path="/history" element={<Navigate to="/" replace />} />
+  <Route path="/reports" element={<Reports />} />
+  <Route path="/scans/:scanId" element={<ScanDetails />} />
+  <Route path="*" element={<Navigate to="/" replace />} />
+</Routes>
         </main>
       </div>
     </BrowserRouter>

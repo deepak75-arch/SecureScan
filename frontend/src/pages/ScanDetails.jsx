@@ -220,10 +220,10 @@ function ScanDetails() {
       <section className="content">
         <button
           className="secondary-button"
-          onClick={() => navigate("/history")}
+          onClick={() => navigate("/")}
         >
           <ArrowLeft size={16} />
-          Back to History
+          Back to Dashboard
         </button>
 
         <p className="demo-notice">{error}</p>
@@ -251,10 +251,10 @@ function ScanDetails() {
       <div className="page-heading">
         <button
           className="secondary-button"
-          onClick={() => navigate("/history")}
+          onClick={() => navigate("/")}
         >
           <ArrowLeft size={16} />
-          Back to History
+          Back to Dashboard
         </button>
 
         <span className="eyebrow">WORKSPACE / SCAN DETAILS</span>
