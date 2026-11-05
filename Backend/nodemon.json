@@ -1,0 +1,18 @@
+
+{
+  "watch": [
+    "server.js",
+    "routes",
+    "models",
+    "scanners",
+    "config"
+  ],
+  "ext": "js,mjs,cjs",
+  "ignore": [
+    "uploads/**",
+    "python-scanner/**",
+    "node_modules/**",
+    "**/*.json"
+  ],
+  "delay": "1000"
+}
