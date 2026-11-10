@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import Scan from "../models/Scan.js";
 import Upload from "../models/Upload.js";
 
+import { getRemediation } from "./remediation.js";
 import { runPythonScanners } from "./pythonScanner.js";
 import { runGitleaks } from "./gitleaksScanner.js";
 
@@ -70,22 +71,238 @@ function normalizeSeverity(severity, scanner) {
 // --------------------------------------------------
 
 function normalizeFinding(finding, scanner) {
+  const asStrings = (value) =>
+    (Array.isArray(value) ? value : value == null ? [] : [value])
+      .map((item) => typeof item === "string" ? item : JSON.stringify(item));
+
   return {
     ruleId: finding.ruleId || "unknown",
     title: finding.title || "Security issue detected",
     description: finding.description || "",
     severity: normalizeSeverity(finding.severity, scanner),
     filePath: finding.filePath || "",
-    line: Number.isInteger(finding.line)
-      ? finding.line
-      : undefined,
-    column: Number.isInteger(finding.column)
-      ? finding.column
-      : undefined,
+    line: Number.isInteger(finding.line) ? finding.line : undefined,
+    column: Number.isInteger(finding.column) ? finding.column : undefined,
+    endLine: Number.isInteger(finding.endLine) ? finding.endLine : undefined,
     recommendation: finding.recommendation || "",
     scanner,
+    confidence: String(finding.confidence || "unknown"),
+    cwe: asStrings(finding.cwe),
+    owasp: asStrings(finding.owasp),
+    references: asStrings(finding.references),
+
+    // Generate rule-specific remediation guidance
+    remediation: getRemediation({
+      ...finding,
+      scanner,
+    }),
+
+    // Avoid storing raw secrets or potentially sensitive source snippets.
   };
 }
+
+
+const SEVERITY_RANK = {
+  info: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+  critical: 4,
+};
+
+// Normalize Windows and Linux file paths.
+function normalizeFilePath(filePath) {
+  return String(filePath || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\.\/+/, "");
+}
+
+// Extract CWE identifiers from scanner metadata.
+function extractCweIds(cweValues = []) {
+  return cweValues
+    .flatMap((value) => String(value).match(/CWE-\d+/gi) || [])
+    .map((value) => value.toUpperCase());
+}
+
+// Get the finding's affected line range.
+function getLineRange(finding) {
+  const start = Number.isInteger(finding.line)
+    ? finding.line
+    : null;
+
+  const end = Number.isInteger(finding.endLine)
+    ? finding.endLine
+    : start;
+
+  if (start === null) return null;
+
+  return {
+    start: Math.min(start, end ?? start),
+    end: Math.max(start, end ?? start),
+  };
+}
+
+// Check whether two findings overlap in source code.
+function rangesOverlap(a, b) {
+  return Boolean(
+    a &&
+    b &&
+    a.start <= b.end &&
+    b.start <= a.end
+  );
+}
+
+// Check whether two findings share a CWE.
+function hasSharedCwe(a, b) {
+  const cweA = new Set(extractCweIds(a.cwe));
+
+  return extractCweIds(b.cwe)
+    .some((id) => cweA.has(id));
+}
+
+// Preserve the original scanner evidence.
+function createFindingSource(finding) {
+  return {
+    scanner: finding.scanner || "Unknown",
+    ruleId: finding.ruleId || "unknown",
+    severity: finding.severity || "info",
+    confidence: finding.confidence || "unknown",
+    description: finding.description || "",
+    recommendation: finding.recommendation || "",
+    line: finding.line,
+    column: finding.column,
+    endLine: finding.endLine,
+    cwe: finding.cwe || [],
+    owasp: finding.owasp || [],
+    references: finding.references || [],
+  };
+}
+
+// Identify an exact repeat from the same scanner and rule.
+function isSameSource(a, b) {
+  return (
+    a.scanner === b.scanner &&
+    a.ruleId === b.ruleId &&
+    a.line === b.line &&
+    a.column === b.column &&
+    a.endLine === b.endLine
+  );
+}
+
+// Determine whether two findings represent the same issue.
+function canConsolidate(a, b) {
+  const pathA = normalizeFilePath(a.filePath);
+  const pathB = normalizeFilePath(b.filePath);
+
+  if (!pathA || pathA !== pathB) {
+    return false;
+  }
+
+  if (!hasSharedCwe(a, b)) {
+    return false;
+  }
+
+  return rangesOverlap(
+    getLineRange(a),
+    getLineRange(b)
+  );
+}
+
+// Merge scanner evidence without losing the original rules.
+function mergeFindingGroup(group, finding) {
+  const incomingSource = createFindingSource(finding);
+
+  if (
+    !group.sources.some((source) =>
+      isSameSource(source, incomingSource)
+    )
+  ) {
+    group.sources.push(incomingSource);
+  }
+
+  const currentRank = SEVERITY_RANK[group.severity] ?? 0;
+  const incomingRank = SEVERITY_RANK[finding.severity] ?? 0;
+
+  // Use the highest severity as the primary finding severity.
+  if (incomingRank > currentRank) {
+    group.title = finding.title || group.title;
+    group.description = finding.description || group.description;
+    group.severity = finding.severity;
+    group.recommendation =
+      finding.recommendation || group.recommendation;
+    group.confidence = finding.confidence || group.confidence;
+    group.ruleId = finding.ruleId || group.ruleId;
+    group.scanner = finding.scanner || group.scanner;
+    group.line = finding.line ?? group.line;
+    group.column = finding.column ?? group.column;
+    group.endLine = finding.endLine ?? group.endLine;
+  }
+
+  group.ruleIds = [...new Set([
+    ...(group.ruleIds || [group.ruleId]),
+    finding.ruleId || "unknown",
+  ])];
+
+  group.scanners = [...new Set([
+    ...(group.scanners || [group.scanner]),
+    finding.scanner || "Unknown",
+  ])];
+
+  group.cwe = [...new Set([
+    ...(group.cwe || []),
+    ...(finding.cwe || []),
+  ])];
+
+  group.owasp = [...new Set([
+    ...(group.owasp || []),
+    ...(finding.owasp || []),
+  ])];
+
+  group.references = [...new Set([
+    ...(group.references || []),
+    ...(finding.references || []),
+  ])];
+
+  return group;
+}
+
+// Intelligent finding deduplication.
+function deduplicateFindings(findings) {
+  const consolidated = [];
+
+  for (const finding of findings) {
+    const incomingSource = createFindingSource(finding);
+
+    const existingGroup = consolidated.find((group) => {
+      const exactRepeat = group.sources.some((source) =>
+        isSameSource(source, incomingSource)
+      );
+
+      return (
+        exactRepeat ||
+        canConsolidate(group, finding)
+      );
+    });
+
+    if (existingGroup) {
+      mergeFindingGroup(existingGroup, finding);
+      continue;
+    }
+
+    consolidated.push({
+      ...finding,
+      ruleIds: [finding.ruleId || "unknown"],
+      scanners: [finding.scanner || "Unknown"],
+      sources: [incomingSource],
+    });
+  }
+
+  return consolidated;
+}
+
+
 
 // --------------------------------------------------
 // 4. Update scan record
@@ -282,6 +499,8 @@ async function executeScan(
 
     const findings = [];
     const errors = [];
+    const scannerExecutions = [];
+    let detectedLanguages = [];
 
     // --------------------------------------------------
     // Process Python results
@@ -289,6 +508,7 @@ async function executeScan(
 
     if (results[0].status === "fulfilled") {
       const pythonResult = results[0].value;
+      detectedLanguages = pythonResult.coverage?.detectedLanguages || [];
 
       if (Array.isArray(pythonResult.scanners)) {
         for (const scannerResult of pythonResult.scanners) {
@@ -296,6 +516,14 @@ async function executeScan(
             scannerResult.scanner || "Python scanner";
 
           log(`${scannerName}: ${scannerResult.status}`);
+          scannerExecutions.push({
+            scanner: scannerName,
+            status: scannerResult.status,
+            totalFindings: (scannerResult.findings || []).length,
+            scannedFiles: scannerResult.coverage?.scannedFiles ?? null,
+            skippedFiles: scannerResult.coverage?.skippedFiles ?? null,
+            message: scannerResult.error || scannerResult.reason || "",
+          });
 
           // Preserve findings even when a scanner is partial.
           for (const finding of scannerResult.findings || []) {
@@ -307,7 +535,7 @@ async function executeScan(
             );
           }
 
-          if (scannerResult.status !== "completed") {
+          if (scannerResult.status !== "completed" && scannerResult.status !== "skipped") {
             errors.push(
               `${scannerName}: ${
                 scannerResult.error || "Scan failed."
@@ -341,6 +569,7 @@ async function executeScan(
       );
 
       errors.push(`Python scanners failed: ${errorMessage}`);
+      scannerExecutions.push({scanner: "Python pipeline", status: "failed", message: errorMessage});
     }
 
     // --------------------------------------------------
@@ -356,6 +585,15 @@ async function executeScan(
         } findings.`
       );
 
+      scannerExecutions.push({
+        scanner: "Gitleaks",
+        status: gitleaksResult.status || "completed",
+        totalFindings: (gitleaksResult.findings || []).length,
+        message: gitleaksResult.error || "",
+      });
+      if (gitleaksResult.status === "failed") {
+        errors.push(`Gitleaks: ${gitleaksResult.error || "Scan failed."}`);
+      }
       for (const finding of gitleaksResult.findings || []) {
         findings.push(
           normalizeFinding(
@@ -374,12 +612,13 @@ async function executeScan(
       );
 
       errors.push(`Gitleaks scanning failed: ${errorMessage}`);
+      scannerExecutions.push({scanner: "Gitleaks", status: "failed", message: errorMessage});
     }
 
     // --------------------------------------------------
     // Save final results
     // --------------------------------------------------
-
+    const uniqueFindings = deduplicateFindings(findings);
     const failed = errors.length > 0;
 
     finalUploadStatus = failed ? "failed" : "completed";
@@ -388,7 +627,9 @@ async function executeScan(
       $set: {
         status: finalUploadStatus,
         completedAt: new Date(),
-        findings,
+        findings: uniqueFindings,
+        scannerExecutions,
+        detectedLanguages,
       },
     };
 
@@ -405,7 +646,8 @@ async function executeScan(
     await updateScan(scanId, update);
 
     log(`Final status: ${finalUploadStatus}`);
-    log(`Total findings: ${findings.length}`);
+    log(`Total findings before deduplication: ${findings.length}`);
+    log(`Total findings after deduplication: ${uniqueFindings.length}`);
 
   } catch (error) {
     console.error(

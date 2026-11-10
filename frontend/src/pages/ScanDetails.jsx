@@ -420,15 +420,146 @@ function ScanDetails() {
                     ? `, Column ${finding.column}`
                     : ""}
                 </p>
+                
+{/* Rule-specific remediation */}
+{(() => {
+  const remediation = finding.remediation || {};
+  const cwe = finding.cwe || [];
+  const owasp = finding.owasp || [];
 
-                <div>
-                  <strong>Recommendation</strong>
+  const formatList = (value) => {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
+  };
 
-                  <p>
-                    {finding.recommendation ||
-                      "Review this finding and apply the appropriate security fix."}
-                  </p>
+  const cweItems = formatList(cwe);
+  const owaspItems = formatList(owasp);
+  const remediationSteps = formatList(remediation.steps);
+  const references = formatList(remediation.references);
+
+  return (
+    <details className="remediation-panel">
+      <summary className="remediation-toggle">
+        <ShieldCheck size={18} />
+        <span>View Remediation</span>
+        <span className="remediation-status">
+          {remediation.available
+            ? "Guidance Available"
+            : "General Guidance"}
+        </span>
+      </summary>
+
+      <div className="remediation-content">
+        <h4>
+          {remediation.title || "Security Remediation"}
+        </h4>
+
+        {remediation.summary && (
+          <div className="remediation-section">
+            <h5>Why is this dangerous?</h5>
+            <p>{remediation.summary}</p>
+          </div>
+        )}
+
+        {remediation.cweGuidance && (
+          <div className="remediation-section">
+            <h5>Security explanation</h5>
+            <p>{remediation.cweGuidance}</p>
+          </div>
+        )}
+
+        {(cweItems.length > 0 || owaspItems.length > 0) && (
+          <div className="remediation-section">
+            <h5>Security references</h5>
+
+            {cweItems.length > 0 && (
+              <p>
+                <strong>CWE:</strong>{" "}
+                {cweItems.join(", ")}
+              </p>
+            )}
+
+            {owaspItems.length > 0 && (
+              <p>
+                <strong>OWASP:</strong>{" "}
+                {owaspItems.join(", ")}
+              </p>
+            )}
+          </div>
+        )}
+
+        {remediationSteps.length > 0 && (
+          <div className="remediation-section">
+            <h5>Recommended fixing steps</h5>
+            <ol>
+              {remediationSteps.map((step, index) => (
+                <li key={index}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {remediation.available &&
+          (remediation.insecureExample ||
+            remediation.secureExample) && (
+            <div className="remediation-section">
+              <h5>
+                Code examples
+                {remediation.exampleLanguage &&
+                  ` (${remediation.exampleLanguage})`}
+              </h5>
+
+              {remediation.insecureExample && (
+                <div className="code-example">
+                  <strong>Insecure example</strong>
+                  <pre>
+                    <code>{remediation.insecureExample}</code>
+                  </pre>
                 </div>
+              )}
+
+              {remediation.secureExample && (
+                <div className="code-example">
+                  <strong>Secure example</strong>
+                  <pre>
+                    <code>{remediation.secureExample}</code>
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+
+        {references.length > 0 && (
+          <div className="remediation-section">
+            <h5>Further reading</h5>
+            <ul>
+              {references.map((reference, index) => (
+                <li key={index}>
+                  <a
+                    href={reference}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {reference}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {!remediation.available && (
+          <p className="remediation-fallback">
+            Rule-specific remediation is not available for this
+            finding yet. Review the scanner recommendation and
+            consult the relevant security references.
+          </p>
+        )}
+      </div>
+    </details>
+  );
+})()}
+
               </article>
             ))}
           </div>

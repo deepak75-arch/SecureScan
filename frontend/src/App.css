@@ -1190,3 +1190,165 @@ button:disabled {
     width: 100%;
   }
 }
+
+/* =====================================
+   SECURESCAN AI - REMEDIATION PANEL
+===================================== */
+
+.remediation-panel {
+  margin-top: 20px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fbff;
+  overflow: hidden;
+}
+
+.remediation-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 17px;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.remediation-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.remediation-toggle::after {
+  content: "+";
+  margin-left: auto;
+  font-size: 20px;
+}
+
+.remediation-panel[open] .remediation-toggle::after {
+  content: "−";
+}
+
+.remediation-status {
+  margin-left: auto;
+  padding: 5px 9px;
+  border-radius: 20px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.remediation-content {
+  padding: 20px;
+  border-top: 1px solid #dbeafe;
+}
+
+.remediation-content h4 {
+  margin-bottom: 16px;
+  color: #14243a;
+  font-size: 17px;
+}
+
+.remediation-section {
+  margin-top: 18px;
+}
+
+.remediation-section h5 {
+  margin-bottom: 9px;
+  color: #334155;
+  font-size: 13px;
+}
+
+.remediation-section p,
+.remediation-section li {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.remediation-section ol,
+.remediation-section ul {
+  padding-left: 22px;
+}
+
+.remediation-section li {
+  margin-bottom: 7px;
+}
+
+.remediation-section a {
+  color: #2563eb;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.remediation-section a:hover {
+  text-decoration: underline;
+}
+
+/* Code examples */
+
+.code-example {
+  margin-top: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.code-example > strong {
+  display: block;
+  padding: 11px 14px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 11px;
+}
+
+.code-example pre {
+  max-width: 100%;
+  padding: 15px;
+  overflow-x: auto;
+  background: #111827;
+  color: #e5e7eb;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre;
+}
+
+.code-example code {
+  font-family: inherit;
+}
+
+.remediation-fallback {
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid #fde68a;
+  border-radius: 7px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+/* Mobile responsiveness */
+
+@media (max-width: 600px) {
+  .remediation-toggle {
+    flex-wrap: wrap;
+    padding: 12px;
+  }
+
+  .remediation-status {
+    margin-left: 0;
+  }
+
+  .remediation-content {
+    padding: 13px;
+  }
+
+  .code-example pre {
+    font-size: 11px;
+  }
+}
