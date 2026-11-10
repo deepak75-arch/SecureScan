@@ -253,7 +253,7 @@ Ensure Semgrep, Bandit, and Gitleaks are installed and configured according to t
 
 ## ☁️ Deployment
 
-SecureScan AI uses the following deployment architecture:
+SecureScan uses the following deployment architecture:
 
 | Component | Platform |
 |---|---|
@@ -280,7 +280,7 @@ The frontend communicates with the deployed backend through the configured API U
 
 ## 🎯 Project Objective
 
-The primary objective of SecureScan AI is to simplify application security assessment by combining multiple security scanning tools into one centralized platform.
+The primary objective of SecureScan is to simplify application security assessment by combining multiple security scanning tools into one centralized platform.
 
 It aims to help developers identify potential vulnerabilities earlier in the development lifecycle, understand security risks, and apply appropriate remediation techniques.
 
